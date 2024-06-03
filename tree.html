@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Random Walk</title>
+    <style>
+        #canvas {
+            width: 500px;
+            height: 500px;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // Get the canvas element
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set the initial position
+        let x = canvas.width / 2;
+        let y = canvas.height / 2;
+
+        // Function to draw the point
+        function drawPoint() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = 'black';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Function to update the position
+        function updatePosition() {
+            const dx = Math.random() * 10 - 5;
+            const dy = Math.random() * 10 - 5;
+            x += dx;                
+            y += dy;
+        }
+
+        // Function to animate the point
+        function animate() {
+            updatePosition();
+            drawPoint();
+            requestAnimationFrame(animate);
+        }
+
+        // Start the animation
+        animate();
+    </script>
+</body>
+</html>
