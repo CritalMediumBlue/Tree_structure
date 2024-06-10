@@ -4,46 +4,127 @@
     <title>Random Walk</title>
     <style>
         #canvas {
-            width: 500px;
-            height: 500px;
-            border: 1px solid black;
+            width: 1000px;
+            height: 1000px;
+            border: 3px solid rgb(32, 136, 0);  /* These are the dimentions of the canvas */
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-
+    <canvas id="canvas" width="1025" height="1025"></canvas>  <!-- These are the dimentions of the canvas -->
+    <script src="https://cdn.jsdelivr.net/npm/d3-quadtree@3"></script>
     <script>
         // Get the canvas element
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Set the initial position
-        let x = canvas.width / 2;
-        let y = canvas.height / 2;
 
-        // Function to draw the point
-        function drawPoint() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Function to draw a point
+        function drawPoint(point, color) {
             ctx.beginPath();
-            ctx.arc(x, y, 5, 0, 2 * Math.PI);
-            ctx.fillStyle = 'black';
+            ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI); // x, y, radius, startAngle, endAngle
+            ctx.fillStyle = color;
             ctx.fill();
+           // ctx.arc(point.x, point.y, 52.5, 0, 2 * Math.PI); // x, y, radius, startAngle, endAngle
+            ctx.stroke();
             ctx.closePath();
         }
 
-        // Function to update the position
-        function updatePosition() {
+        // Function to update the position of a point
+        function updatePosition(point) {
             const dx = Math.random() * 10 - 5;
             const dy = Math.random() * 10 - 5;
-            x += dx;                
-            y += dy;
+            point.x = (point.x + dx + canvas.width) % canvas.width;
+            point.y = (point.y + dy + canvas.height) % canvas.height;
         }
 
-        // Function to animate the point
+
+
+                // Function to draw a rectangle for a quadtree node
+        // Function to draw a rectangle for a quadtree node
+        function drawQuadtree(node, x1, y1, x2, y2) {
+
+
+        // If this node has children, draw the rectangles for them
+        if (node.length) {
+            const xm = (x1 + x2) / 2;
+            const ym = (y1 + y2) / 2;
+            if (node[0]) drawQuadtree(node[0], x1, y1, xm, ym); // top-left
+            if (node[1]) drawQuadtree(node[1], xm, y1, x2, ym); // top-right
+            if (node[2]) drawQuadtree(node[2], x1, ym, xm, y2); // bottom-left
+            if (node[3]) drawQuadtree(node[3], xm, ym, x2, y2); // bottom-right
+        } else {
+            // Draw the rectangle only for leaf nodes
+            ctx.beginPath();
+            ctx.rect(x1, y1, x2 - x1, y2 - y1);
+            ctx.strokeStyle = 'blue';
+            ctx.stroke();
+        }
+
+
+        }
+                // Create an array of points
+        const points = Array(4).fill().map(() => ({
+            x: canvas.width/2,
+            y: canvas.height/2
+            }));
+
+                // Create a quadtree with the points
+        const quadtree = d3.quadtree()
+            .x(d => d.x)
+            .y(d => d.y)
+            .addAll(points);
+
+        // Function to check if a point is close to any other point
+        function isCloseToOtherPoint(point) { // The function takes as input a point (x, y) and returns true if the point is close to another point
+            const threshold = 100; // Change this to adjust the distance at which points turn red
+            // Query the quadtree for points within the threshold distance
+            let nearbyPoint = null;
+            quadtree.visit((node, x1, y1, x2, y2) => { // Visit all nodes in the quadtree. The arguments are the node and the bounds of the node
+                if (!node.length) { // If this is a leaf node
+                    do {
+                        var d = node.data; // Get the point. The point is stored in the data property of the node as
+                        if (d === point) continue; // Skip the point itself
+                        const dx = point.x - d.x;
+                        const dy = point.y - d.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < threshold) {
+                            nearbyPoint = node;
+                            return true; // Stop visiting when we find a nearby point
+                        }
+                    } while (node = node.next);
+                } // If this is not a leaf node, continue visiting the tree
+                // Don't visit subtrees if their closest point wouldn't be within the threshold distance
+                return x1 > point.x + threshold || x2 + threshold < point.x || y1 > point.y + threshold || y2 + threshold < point.y;  // Return true if the point is outside the threshold distance. This will stop visiting the subtree
+            });
+            return nearbyPoint !== null; // if nearbyPoint is not null, then the point is close to another point
+        }
+        
+ 
+
+        // Function to animate the points
         function animate() {
-            updatePosition();
-            drawPoint();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Create a quadtree with the current positions of the points
+            const quadtree = d3.quadtree()
+                .extent([[0, 0], [canvas.width, canvas.height]]) // Set the extent of the quadtree to the size of the canvas
+                .x(d => d.x)
+                .y(d => d.y)
+                .addAll(points);
+
+            // Draw the quadtree
+            quadtree.visit((node, x1, y1, x2, y2) => { 
+                drawQuadtree(node, x1, y1, x2, y2); 
+                return false; // Continue visiting all nodes. 
+            });
+
+            points.forEach(point => {
+                updatePosition(point);
+                const color = isCloseToOtherPoint(point) ? 'red' : 'black';
+                drawPoint(point, color);
+            });
             requestAnimationFrame(animate);
         }
 
