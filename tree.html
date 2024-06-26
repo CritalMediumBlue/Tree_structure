@@ -38,7 +38,9 @@
         // Function to draw a point
         function drawPoint(point, color) {
             let radius = 3;
-            if (color ==="red") radius = 8;
+            if (color ==="red") radius = 5;
+
+            if (color === "green") radius = 8;
           
 
             ctx.beginPath();
@@ -73,64 +75,70 @@
 
         // Function to update the position of a point
         function updatePosition(point, color, neighbors) {
-            // calculate the proportion of red points in the neighborhood
-            let redCount = 0;
-            let blackCount = 0;
-            neighbors.forEach(neighbor => {
-                if (neighbor.color === 'red') {
-                    redCount++;
-                } else {
-                    blackCount++;
-                }
-            });
+            let redGreenCount = 0, blackCount = 0, xSum = 0, ySum = 0, xBlackSum = 0, yBlackSum = 0;
 
-            // calculate center of mass of the red neighbors
-            let xSum = 0;
-            let ySum = 0;
+
+            // Combine counting and center of mass calculation for red/green and separate counting for black
             neighbors.forEach(neighbor => {
-                if (neighbor.color === 'red') {
+                if (neighbor.color === 'red' || neighbor.color === 'green') {
+                    redGreenCount++;
                     xSum += neighbor.x;
                     ySum += neighbor.y;
                 }
+                if (neighbor.color === 'black') {
+                    blackCount++;
+                    xBlackSum += neighbor.x;
+                    yBlackSum += neighbor.y;
+                }
             });
 
-            let xCenter, yCenter;
-            if (redCount > 0) { // Only calculate if there are red neighbors
-                xCenter = xSum / redCount;
-                yCenter = ySum / redCount;
-            } else {
-                xCenter = yCenter = 0; // Default values if no red neighbors
-            }
+            // Calculate center of mass for red/green
+            const xCenter = redGreenCount > 0 ? xSum / redGreenCount : 0;
+            const yCenter = redGreenCount > 0 ? ySum / redGreenCount : 0;
 
-            // normalized vector pointing away from the center of mass
-            let xNorm = 0;
-            let yNorm = 0;
+            // Calculate center of mass for black
+            const xBlackCenter = blackCount > 0 ? xBlackSum / blackCount : 0;
+            const yBlackCenter = blackCount > 0 ? yBlackSum / blackCount : 0;
 
-            if (redCount > 0) { // Only calculate if there are red neighbors
-                let distance = Math.sqrt((point.x - xCenter)**2 + (point.y - yCenter)**2);
-                if (distance > 0) { // Avoid division by zero
-                    xNorm = (point.x - xCenter) / distance;
-                    yNorm = (point.y - yCenter) / distance;
+            // Calculate normalized vector pointing away from the center of mass
+            const distance = Math.sqrt((point.x - xCenter) ** 2 + (point.y - yCenter) ** 2);
+            const xNorm = distance > 0 ? (point.x - xCenter) / distance : 0;
+            const yNorm = distance > 0 ? (point.y - yCenter) / distance : 0;
+
+            // Calculate normalized vector for black center of mass
+            const distanceBlack = Math.sqrt((point.x - xBlackCenter) ** 2 + (point.y - yBlackCenter) ** 2);
+            const xBlackNorm = distanceBlack > 0 ? (point.x - xBlackCenter) / distanceBlack : 0;
+            const yBlackNorm = distanceBlack > 0 ? (point.y - yBlackCenter) / distanceBlack : 0;
+
+            // Movement logic based on color and neighbor presence
+            if (color === 'black') {
+                let dx, dy;
+                if (redGreenCount > 0) {
+                    // Move away from the center of mass of red and green points
+                    dx = xNorm * 2;
+                    dy = yNorm * 2;
+                } else {
+                    // Move randomly if no red or green neighbors
+                    dx = (Math.random() - 0.5) * 10;
+                    dy = (Math.random() - 0.5) * 10;
                 }
+                point.x = (point.x + dx + canvas.width) % canvas.width;
+                point.y = (point.y + dy + canvas.height) % canvas.height;
+            } else if (color === "green") {
+                let dx, dy;
+                if (blackCount > 0) {
+                    // Move away from the center of mass of black points
+                    dx = xBlackNorm * 2;
+                    dy = yBlackNorm * 2;
+                }
+                point.x = (point.x + dx + canvas.width) % canvas.width;
+                point.y = (point.y + dy + canvas.height) % canvas.height;
             }
 
-            if (color === 'red') {
-                // Red points do not move in this implementation
-            } else if (color === 'black' && redCount > 0) {
-                // Move randomly away from the center of mass of the red points
-                const dx = xNorm;
-                const dy = yNorm;
-                point.x = (point.x + dx + canvas.width) % canvas.width;
-                point.y = (point.y + dy + canvas.height) % canvas.height;
-            } else if (color === 'black' && redCount === 0) {
-                // If no red neighbors, move randomly
-                const dx = (Math.random() - 0.5) * 5;
-                const dy = (Math.random() - 0.5) * 5;
-                point.x = (point.x + dx + canvas.width) % canvas.width;
-                point.y = (point.y + dy + canvas.height) % canvas.height;
-            }
+
+
+            
         }
-
 
 
 
@@ -169,7 +177,17 @@
 
 
         function checkForAddition(point, color, greenNeighbors) {
-
+/*             if (color === 'red' && Math.random() < 0.001) {
+                
+                // Add a new point
+                let newPoint = {
+                    x: point.x ,
+                    y: point.y ,
+                    color: 'black'
+                };
+                points.push(newPoint);
+             
+            } */
     
 
         }
@@ -183,16 +201,24 @@
             //plotQuadtree()
             points.forEach(point => {
                 let neighbors = isCloseToOtherPoint(point);
+                let greenNeighbors = neighbors.filter(neighbor => neighbor.color === 'green');
 
-                // if there are less than 3 neighbors, the point is red, otherwise it is black
-                
-                if (neighbors.length < 5) {
+
+             if (point.color != "green") {  
+                if (neighbors.length < 8) {
                     point.color = 'red';
                 } else {
                     point.color = 'black';
                 }
-               
-                checkForAddition(point, point.color);
+             } 
+
+             if (point.color === "red" && Math.random() < 0.0001) {
+
+                point.color = "green";
+
+                }
+
+                checkForAddition(point, point.color, greenNeighbors);
                 updatePosition(point, point.color, neighbors);
                 drawPoint(point, point.color);
             });
