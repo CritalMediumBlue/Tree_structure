@@ -11,76 +11,138 @@
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="1025" height="1025"></canvas>  <!-- These are the dimentions of the canvas -->
+    <canvas id="canvas" width="1000" height="1000"></canvas>  <!-- These are the dimentions of the canvas -->
     <script src="https://cdn.jsdelivr.net/npm/d3-quadtree@3"></script>
     <script>
         // Get the canvas element
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        let area = 1;
+        // Create an array of points
+        const points = Array(100).fill().map(() => ({
+            x: canvas.width/2,//+ (Math.random() - 0.5)*area,
+            y: canvas.height/2, //+ (Math.random() - 0.5)*area,
+            }));
+
+        // Create a quadtree with the points
+        let quadtree = d3.quadtree()
+            .extent([[0, 0], [canvas.width, canvas.height]])
+            .x(d => d.x)
+            .y(d => d.y)
+            .addAll(points);
+        const threshold = 30; 
+
 
 
 
         // Function to draw a point
         function drawPoint(point, color) {
+            let radius = 3;
+            if (color ==="red") radius = 8;
+          
+
             ctx.beginPath();
-            ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI); // x, y, radius, startAngle, endAngle
+            ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI); // x, y, radius, startAngle, endAngle
             ctx.fillStyle = color;
             ctx.fill();
-           // ctx.arc(point.x, point.y, 52.5, 0, 2 * Math.PI); // x, y, radius, startAngle, endAngle
-            ctx.stroke();
+     
             ctx.closePath();
         }
-
-        // Function to update the position of a point
-        function updatePosition(point) {
-            const dx = Math.random() * 10 - 5;
-            const dy = Math.random() * 10 - 5;
-            point.x = (point.x + dx + canvas.width) % canvas.width;
-            point.y = (point.y + dy + canvas.height) % canvas.height;
-        }
-
-
 
                 // Function to draw a rectangle for a quadtree node
         // Function to draw a rectangle for a quadtree node
         function drawQuadtree(node, x1, y1, x2, y2) {
-
-
-        // If this node has children, draw the rectangles for them
-        if (node.length) {
-            const xm = (x1 + x2) / 2;
-            const ym = (y1 + y2) / 2;
-            if (node[0]) drawQuadtree(node[0], x1, y1, xm, ym); // top-left
-            if (node[1]) drawQuadtree(node[1], xm, y1, x2, ym); // top-right
-            if (node[2]) drawQuadtree(node[2], x1, ym, xm, y2); // bottom-left
-            if (node[3]) drawQuadtree(node[3], xm, ym, x2, y2); // bottom-right
-        } else {
-            // Draw the rectangle only for leaf nodes
-            ctx.beginPath();
-            ctx.rect(x1, y1, x2 - x1, y2 - y1);
-            ctx.strokeStyle = 'blue';
-            ctx.stroke();
+            ctx.beginPath(); // Start path before recursive calls
+            (function drawNode(node, x1, y1, x2, y2) {
+                if (node.length) {
+                    const xm = (x1 + x2) / 2;
+                    const ym = (y1 + y2) / 2;
+                    if (node[0]) drawNode(node[0], x1, y1, xm, ym);
+                    if (node[1]) drawNode(node[1], xm, y1, x2, ym);
+                    if (node[2]) drawNode(node[2], x1, ym, xm, y2);
+                    if (node[3]) drawNode(node[3], xm, ym, x2, y2);
+                } else {
+                    ctx.rect(x1, y1, x2 - x1, y2 - y1);
+                }
+            })(node, x1, y1, x2, y2);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 0.3;
+            ctx.stroke(); // Stroke once after all rectangles are drawn
         }
 
 
-        }
-                // Create an array of points
-        const points = Array(100).fill().map(() => ({
-            x: canvas.width/2,
-            y: canvas.height/2
-            }));
+        // Function to update the position of a point
+        function updatePosition(point, color, neighbors) {
+            // calculate the proportion of red points in the neighborhood
+            let redCount = 0;
+            let blackCount = 0;
+            neighbors.forEach(neighbor => {
+                if (neighbor.color === 'red') {
+                    redCount++;
+                } else {
+                    blackCount++;
+                }
+            });
 
-                // Create a quadtree with the points
-        const quadtree = d3.quadtree()
-            .x(d => d.x)
-            .y(d => d.y)
-            .addAll(points);
+            // calculate center of mass of the red neighbors
+            let xSum = 0;
+            let ySum = 0;
+            neighbors.forEach(neighbor => {
+                if (neighbor.color === 'red') {
+                    xSum += neighbor.x;
+                    ySum += neighbor.y;
+                }
+            });
+
+            let xCenter, yCenter;
+            if (redCount > 0) { // Only calculate if there are red neighbors
+                xCenter = xSum / redCount;
+                yCenter = ySum / redCount;
+            } else {
+                xCenter = yCenter = 0; // Default values if no red neighbors
+            }
+
+            // normalized vector pointing away from the center of mass
+            let xNorm = 0;
+            let yNorm = 0;
+
+            if (redCount > 0) { // Only calculate if there are red neighbors
+                let distance = Math.sqrt((point.x - xCenter)**2 + (point.y - yCenter)**2);
+                if (distance > 0) { // Avoid division by zero
+                    xNorm = (point.x - xCenter) / distance;
+                    yNorm = (point.y - yCenter) / distance;
+                }
+            }
+
+            if (color === 'red') {
+                // Red points do not move in this implementation
+            } else if (color === 'black' && redCount > 0) {
+                // Move randomly away from the center of mass of the red points
+                const dx = xNorm;
+                const dy = yNorm;
+                point.x = (point.x + dx + canvas.width) % canvas.width;
+                point.y = (point.y + dy + canvas.height) % canvas.height;
+            } else if (color === 'black' && redCount === 0) {
+                // If no red neighbors, move randomly
+                const dx = (Math.random() - 0.5) * 5;
+                const dy = (Math.random() - 0.5) * 5;
+                point.x = (point.x + dx + canvas.width) % canvas.width;
+                point.y = (point.y + dy + canvas.height) % canvas.height;
+            }
+        }
+
+
+
+
 
         // Function to check if a point is close to any other point
-        function isCloseToOtherPoint(point) { // The function takes as input a point (x, y) and returns true if the point is close to another point
-            const threshold = 100; // Change this to adjust the distance at which points turn red
+        function isCloseToOtherPoint(point) {
+
+       
+            
+
             // Query the quadtree for points within the threshold distance
-            let nearbyPoint = null;
+            let nearbyPoints = [];
             quadtree.visit((node, x1, y1, x2, y2) => { // Visit all nodes in the quadtree. The arguments are the node and the bounds of the node
                 if (!node.length) { // If this is a leaf node
                     do {
@@ -90,24 +152,64 @@
                         const dy = point.y - d.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         if (distance < threshold) {
-                            nearbyPoint = node;
-                            return true; // Stop visiting when we find a nearby point
+                            nearbyPoints.push(d); // Add the point to the nearby points array
+                            //return true; // Stop visiting when we find a nearby point
                         }
                     } while (node = node.next);
                 } // If this is not a leaf node, continue visiting the tree
                 // Don't visit subtrees if their closest point wouldn't be within the threshold distance
                 return x1 > point.x + threshold || x2 + threshold < point.x || y1 > point.y + threshold || y2 + threshold < point.y;  // Return true if the point is outside the threshold distance. This will stop visiting the subtree
             });
-            return nearbyPoint !== null; // if nearbyPoint is not null, then the point is close to another point
+
+            // if there is no nearby point, return false. If there is a nearby point, return the color of the nearby point
+            return nearbyPoints 
+            
+        }
+
+
+
+        function checkForAddition(point, color, greenNeighbors) {
+
+    
+
         }
         
  
 
         // Function to animate the points
         function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Create a quadtree with the current positions of the points
+            ctx.clearRect(0, 0, canvas.width, canvas.height);            
+            //plotQuadtree()
+            points.forEach(point => {
+                let neighbors = isCloseToOtherPoint(point);
+
+                // if there are less than 3 neighbors, the point is red, otherwise it is black
+                
+                if (neighbors.length < 5) {
+                    point.color = 'red';
+                } else {
+                    point.color = 'black';
+                }
+               
+                checkForAddition(point, point.color);
+                updatePosition(point, point.color, neighbors);
+                drawPoint(point, point.color);
+            });
+
+            quadtree = d3.quadtree()
+                .x(d => d.x)
+                .y(d => d.y)
+                .addAll(points);
+
+
+
+
+            requestAnimationFrame(animate);
+        }
+
+
+        function plotQuadtree(){
             const quadtree = d3.quadtree()
                 .extent([[0, 0], [canvas.width, canvas.height]]) // Set the extent of the quadtree to the size of the canvas
                 .x(d => d.x)
@@ -118,14 +220,7 @@
             quadtree.visit((node, x1, y1, x2, y2) => { 
                 drawQuadtree(node, x1, y1, x2, y2); 
                 return false; // Continue visiting all nodes. 
-            });
-
-            points.forEach(point => {
-                updatePosition(point);
-                const color = isCloseToOtherPoint(point) ? 'red' : 'black';
-                drawPoint(point, color);
-            });
-            requestAnimationFrame(animate);
+            }); 
         }
 
         // Start the animation
