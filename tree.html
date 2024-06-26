@@ -30,7 +30,7 @@
             .x(d => d.x)
             .y(d => d.y)
             .addAll(points);
-        const threshold = 30; 
+        const threshold = 40; 
 
 
 
@@ -77,7 +77,6 @@
         function updatePosition(point, color, neighbors) {
             let redGreenCount = 0, blackCount = 0, xSum = 0, ySum = 0, xBlackSum = 0, yBlackSum = 0;
 
-
             // Combine counting and center of mass calculation for red/green and separate counting for black
             neighbors.forEach(neighbor => {
                 if (neighbor.color === 'red' || neighbor.color === 'green') {
@@ -100,21 +99,14 @@
             const xBlackCenter = blackCount > 0 ? xBlackSum / blackCount : 0;
             const yBlackCenter = blackCount > 0 ? yBlackSum / blackCount : 0;
 
-            // Calculate normalized vector pointing away from the center of mass
-            const distance = Math.sqrt((point.x - xCenter) ** 2 + (point.y - yCenter) ** 2);
-            const xNorm = distance > 0 ? (point.x - xCenter) / distance : 0;
-            const yNorm = distance > 0 ? (point.y - yCenter) / distance : 0;
-
-            // Calculate normalized vector for black center of mass
-            const distanceBlack = Math.sqrt((point.x - xBlackCenter) ** 2 + (point.y - yBlackCenter) ** 2);
-            const xBlackNorm = distanceBlack > 0 ? (point.x - xBlackCenter) / distanceBlack : 0;
-            const yBlackNorm = distanceBlack > 0 ? (point.y - yBlackCenter) / distanceBlack : 0;
-
             // Movement logic based on color and neighbor presence
             if (color === 'black') {
                 let dx, dy;
                 if (redGreenCount > 0) {
                     // Move away from the center of mass of red and green points
+                    const distance = Math.sqrt((point.x - xCenter) ** 2 + (point.y - yCenter) ** 2);
+                    const xNorm = distance > 0 ? (point.x - xCenter) / distance : 0;
+                    const yNorm = distance > 0 ? (point.y - yCenter) / distance : 0;
                     dx = xNorm * 2;
                     dy = yNorm * 2;
                 } else {
@@ -124,20 +116,16 @@
                 }
                 point.x = (point.x + dx + canvas.width) % canvas.width;
                 point.y = (point.y + dy + canvas.height) % canvas.height;
-            } else if (color === "green") {
-                let dx, dy;
-                if (blackCount > 0) {
-                    // Move away from the center of mass of black points
-                    dx = xBlackNorm * 2;
-                    dy = yBlackNorm * 2;
-                }
+            } else if (color === "green" && blackCount > 0) {
+                // Move away from the center of mass of black points
+                const distanceBlack = Math.sqrt((point.x - xBlackCenter) ** 2 + (point.y - yBlackCenter) ** 2);
+                const xBlackNorm = distanceBlack > 0 ? (point.x - xBlackCenter) / distanceBlack : 0;
+                const yBlackNorm = distanceBlack > 0 ? (point.y - yBlackCenter) / distanceBlack : 0;
+                let dx = xBlackNorm * 2;
+                let dy = yBlackNorm * 2;
                 point.x = (point.x + dx + canvas.width) % canvas.width;
                 point.y = (point.y + dy + canvas.height) % canvas.height;
             }
-
-
-
-            
         }
 
 
@@ -204,15 +192,15 @@
                 let greenNeighbors = neighbors.filter(neighbor => neighbor.color === 'green');
 
 
-             if (point.color != "green") {  
-                if (neighbors.length < 8) {
+             if (point.color != "green" ) {
+                if (neighbors.length < 10 && greenNeighbors.length === 0) {
                     point.color = 'red';
                 } else {
                     point.color = 'black';
                 }
              } 
 
-             if (point.color === "red" && Math.random() < 0.0001) {
+             if (point.color === "red" && Math.random() < 0.001) {
 
                 point.color = "green";
 
