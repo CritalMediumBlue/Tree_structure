@@ -31,8 +31,10 @@
             .y(d => d.y)
             .addAll(points);
         const threshold = 30; 
-
-
+        const clusterSize = 10;
+        const minStep = 1; // Minimum step size
+        const neighborCorrelation = 1; // a number between 0 and 1. How much the velocity of a point is influenced by its neighbors
+        const custering = 1; // 0: clusterring is OFF. 1: clustering in ON
 
         // Function to draw a point
         function drawPoint(point, color) {
@@ -78,8 +80,8 @@
                 if(color != "rgb(0, 0, 255)")
                 {
 
-                dx = (Math.random() - 0.5)* (n-15)+ Math.random()-0.5 ;
-                dy = (Math.random() - 0.5) * (n-15)+ Math.random() -0.5;
+                dx = custering*(Math.random() - 0.5)* (n-clusterSize)+     (Math.random()-0.5)*minStep ;
+                dy = custering*(Math.random() - 0.5) * (n-clusterSize)+   (Math.random() -0.5)*minStep;
                 
                 point.x = (point.x + dx + canvas.width) % canvas.width;
                 point.y = (point.y + dy + canvas.height) % canvas.height;
@@ -99,8 +101,8 @@
                 avg_dx = avg_dx/n;
                 avg_dy = avg_dy/n;
 
-                dx = (Math.random() - 0.5) * (n-15)+ Math.random()-0.5 + avg_dx;
-                dy = (Math.random() - 0.5) * (n-15)+ Math.random() -0.5 + avg_dy;
+                dx =   custering*(Math.random() - 0.5) * (n-clusterSize)+    (Math.random()-0.5)*minStep  +    avg_dx*neighborCorrelation;
+                dy =   custering*(Math.random() - 0.5) * (n-clusterSize)+    (Math.random() -0.5)*minStep +    avg_dy*neighborCorrelation;
 
                 point.x = (point.x + dx + canvas.width) % canvas.width;
                 point.y = (point.y + dy + canvas.height) % canvas.height;
@@ -157,7 +159,7 @@
             points.forEach(point => {
                 let neighbors = isCloseToOtherPoint(point, threshold);
 
-                if (neighbors.length > 12 && neighbors.length < 18){
+                if (neighbors.length > clusterSize-3 && neighbors.length < clusterSize+3){
                     //blue
                     point.color = "rgb(0, 0, 255)";
                 } else {
